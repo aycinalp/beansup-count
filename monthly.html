@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Beans Up — Aylık Sayım</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #FFF8F0; color: #2C1810; padding-bottom: 100px;
+}
+header {
+  background: #2C1810; color: #FFF8F0; padding: 12px 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.title .accent { color: #F16333; }
+.tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.tab {
+  flex: 1; padding: 10px 6px; background: #3d2418; color: #D4A574;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.tab.active { background: #F16333; color: white; }
+.progress {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: #D4A574; gap: 10px;
+}
+.ptrack { flex: 1; height: 6px; background: #3d2418; border-radius: 3px; overflow: hidden; }
+.pfill { height: 100%; background: #F16333; width: 0%; transition: width 0.3s; }
+
+.value-strip {
+  background: #3d2418; color: #FFF8F0;
+  padding: 8px 16px; font-size: 12px;
+  display: flex; justify-content: space-between;
+}
+.value-strip .big { font-size: 16px; font-weight: 700; color: #F16333; }
+.diff-up { color: #6fc996; }
+.diff-down { color: #ff8a72; }
+
+.legend {
+  font-size: 11px; color: #8a6a3a; padding: 6px 12px;
+  background: #f5ead2; border-bottom: 1px solid #D4A574;
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+}
+.legend span { display: flex; align-items: center; gap: 4px; }
+
+.search {
+  position: sticky; top: 152px; z-index: 80;
+  background: #FFF8F0; padding: 8px 12px;
+  border-bottom: 1px solid #e5d3b8;
+}
+.search input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid #D4A574; border-radius: 8px;
+  font-size: 15px; background: white;
+}
+
+.cat-jump {
+  background: #FFF; padding: 10px 12px;
+  border-bottom: 1px solid #D4A574;
+  overflow-x: auto; white-space: nowrap;
+  position: sticky; top: 200px; z-index: 70;
+  -webkit-overflow-scrolling: touch;
+}
+.cat-jump button {
+  display: inline-block; padding: 6px 12px; margin-right: 6px;
+  background: #FFF8F0; border: 1px solid #D4A574;
+  border-radius: 16px; font-size: 12px; color: #2C1810;
+  cursor: pointer; font-weight: 500;
+}
+.cat-jump button.done { background: #D4A574; color: white; }
+
+.cat-header {
+  background: #D4A574; color: #2C1810;
+  padding: 12px 16px; font-weight: 700;
+  font-size: 14px; letter-spacing: 0.3px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 8px;
+}
+.cat-meta { display: flex; gap: 8px; font-size: 12px; }
+.cat-count {
+  font-weight: 500; background: rgba(44,24,16,0.15);
+  padding: 3px 8px; border-radius: 10px;
+}
+.cat-value {
+  font-weight: 700; background: #2C1810; color: #F16333;
+  padding: 3px 8px; border-radius: 10px;
+}
+
+.item {
+  background: white; margin: 6px 10px; padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-left: 4px solid transparent;
+}
+.item.counted { border-left-color: #F16333; background: #fff8f0; }
+.item.piece { border-top: 2px solid #D4A574; }
+
+.item-row { display: flex; align-items: center; gap: 8px; }
+.item-info { flex: 1; min-width: 0; }
+.item-name {
+  font-weight: 600; font-size: 15px; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.badge.piece { background: #F16333; color: white; }
+.badge.case { background: #f0e5d0; color: #8a6a3a; }
+.item-meta {
+  font-size: 11px; color: #8a7560;
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.pill {
+  background: #f0e5d0; padding: 2px 6px;
+  border-radius: 4px; white-space: nowrap;
+}
+.pill.value { background: #2C1810; color: #F16333; font-weight: 600; }
+.pill.dup { background: #d4ead9; color: #2d7a4f; font-weight: 600; }
+.pill.ddn { background: #f5d6cf; color: #c44; font-weight: 600; }
+
+.controls { display: flex; align-items: center; gap: 4px; }
+.btn-q {
+  width: 36px; height: 36px; border: none; border-radius: 8px;
+  font-size: 20px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-minus { background: #f0e5d0; color: #2C1810; }
+.btn-plus { background: #F16333; color: white; }
+.qty-input {
+  width: 56px; height: 36px;
+  text-align: center; font-size: 16px; font-weight: 600;
+  border: 1px solid #D4A574; border-radius: 8px;
+  background: white; color: #2C1810;
+}
+
+.bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #2C1810; padding: 10px;
+  display: flex; gap: 6px; z-index: 100;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+}
+.bar button {
+  flex: 1; padding: 10px 4px; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.b-summary { background: #3d2418; color: #D4A574; }
+.b-export { background: #F16333; color: white; }
+.b-reset { background: #8a3a20; color: white; }
+
+#err {
+  background: #ffe5e5; color: #800;
+  padding: 12px; margin: 10px;
+  border-radius: 8px; font-size: 12px;
+  font-family: monospace; white-space: pre-wrap;
+  display: none;
+}
+#err.show { display: block; }
+
+.toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  background: #2C1810; color: white;
+  padding: 10px 18px; border-radius: 20px;
+  font-size: 13px; z-index: 300;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* Password overlay */
+#login-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #2C1810 0%, #3d2418 100%);
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+#login-overlay.hidden { display: none; }
+.login-box {
+  background: rgba(255,248,240,0.05);
+  border: 2px solid #D4A574;
+  border-radius: 16px;
+  padding: 32px 24px;
+  max-width: 320px; width: 100%;
+  text-align: center;
+}
+.login-logo { font-size: 48px; margin-bottom: 8px; }
+.login-title {
+  font-size: 22px; font-weight: 700; color: #FFF8F0;
+  margin-bottom: 4px;
+}
+.login-title .accent { color: #F16333; }
+.login-subtitle {
+  font-size: 13px; color: #D4A574; margin-bottom: 24px;
+}
+.login-input {
+  width: 100%; padding: 14px 16px;
+  font-size: 18px; text-align: center;
+  border: 1px solid #D4A574; border-radius: 10px;
+  background: rgba(255,255,255,0.95); color: #2C1810;
+  margin-bottom: 12px;
+  -webkit-text-security: disc;
+  letter-spacing: 4px;
+  font-weight: 600;
+}
+.login-btn {
+  width: 100%; padding: 14px;
+  background: #F16333; color: white;
+  border: none; border-radius: 10px;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+}
+.login-btn:active { background: #d54f25; }
+.login-error {
+  color: #ff8a72; font-size: 13px; margin-top: 8px;
+  min-height: 18px;
+}
+</style>
+</head>
+<body>
+
+<!-- Password lock -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">🔒</div>
+    <div class="login-title">Beans Up — <span class="accent">Aylık Sayım</span></div>
+    <div class="login-subtitle">Enter password to continue</div>
+    <input type="password" inputmode="numeric" id="login-pw" class="login-input" placeholder="••••••" autocomplete="off" autofocus>
+    <button class="login-btn" id="login-btn">Unlock</button>
+    <div class="login-error" id="login-err"></div>
+  </div>
+</div>
+
+
+<header>
+  <div class="title">☕ Beans Up — <span class="accent">Aylık Sayım</span></div>
+  <div class="tabs">
+    <button class="tab active" data-store="westpark">Westpark</button>
+    <button class="tab" data-store="white_wing">White Wing</button>
+    <button class="tab" data-store="spring">Spring</button>
+  </div>
+  <div class="progress">
+    <span id="prog-text">0 / 0</span>
+    <div class="ptrack"><div class="pfill" id="prog-fill"></div></div>
+    <span id="prog-pct">0%</span>
+  </div>
+</header>
+
+<div class="value-strip">
+  <span>Stok değeri: <span class="big" id="store-value">$0</span></span>
+  <span id="value-diff"></span>
+</div>
+
+<div class="legend">
+  <span><span class="badge piece">ADET</span> tek tek say</span>
+  <span><span class="badge case">KASA</span> kasa say (yarım için 0.5)</span>
+</div>
+
+<div class="cat-jump" id="cat-jump"></div>
+<div class="search"><input type="text" id="search" placeholder="🔍 Ürün ara..."></div>
+
+<div id="err"></div>
+<main id="list"></main>
+
+<div class="bar">
+  <button class="b-summary" onclick="showSummary()">📊 Özet</button>
+  <button class="b-export" onclick="exportCSV()">⬇️ CSV İndir</button>
+  <button class="b-reset" onclick="resetStore()">🗑️ Sıfırla</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==== DATA ====
+var ITEMS = [{"cat": "SAUCES & TIKI", "name": "Blue Tiki", "unit": "Bottle", "price": 31.0, "pw": 0.5, "pww": 0.1, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Pink Tiki", "unit": "Bottle", "price": 31.0, "pw": 0, "pww": 0.1, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Lavender Tiki", "unit": "Bottle", "price": 31.0, "pw": 0.4, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Red Tiki", "unit": "Bottle", "price": 31.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "White Lotus", "unit": "Bottle", "price": 26.310000000000002, "pw": 0.7000000000000001, "pww": 0.1, "ps": 0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Caramel Sauce", "unit": "Jug", "price": 14.58, "pw": 1.2, "pww": 1.0, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Dark Chocolate Sauce", "unit": "Jug", "price": 13.540000000000001, "pw": 2.6, "pww": 1.0, "ps": 2.5, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "White Chocolate Sauce", "unit": "Jug", "price": 14.58, "pw": 1.2, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Strawberry Sauce", "unit": "Jug", "price": 14.58, "pw": 1.1, "pww": 1.3, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Pumpkin Pie Sauce", "unit": "Jug", "price": 19.42, "pw": 0.1, "pww": 2.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "SAUCES & TIKI", "name": "Salted Caramel Sauce", "unit": "Jug", "price": 14.58, "pw": 1.2, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Whole Milk", "unit": "Gallon", "price": 3.46, "pw": 18.0, "pww": 19.0, "ps": 14.0, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Almond Milk", "unit": "Half Gallon", "price": 3.83, "pw": 6.0, "pww": 8.0, "ps": 7.5, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Coconut Milk", "unit": "Half Gallon", "price": 4.14, "pw": 10.5, "pww": 7.0, "ps": 5.0, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Oat Milk", "unit": "Half Gallon", "price": 4.14, "pw": 15.0, "pww": 21.0, "ps": 14.0, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Half & Half", "unit": "Half Gallon", "price": 3.09, "pw": 9.0, "pww": 8.0, "ps": 9.0, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Heavy Whipping Cream", "unit": "Half Gallon", "price": 5.9, "pw": 6.5, "pww": 6.0, "ps": 6.5, "piece": false, "upc": 1}, {"cat": "1. MILK ITEMS", "name": "Whipped Cream", "unit": "Can", "price": 3.62, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Ciabatta Bread", "unit": "Case/64", "price": 56.71, "pw": 0, "pww": 0, "ps": 10.0, "piece": true, "upc": 64}, {"cat": "2. SNACKS & FOOD", "name": "Baguette Bread", "unit": "Piece", "price": 20.0, "pw": 0, "pww": 0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Texas Bread", "unit": "Piece", "price": 3.73, "pw": 2.0, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Brown Sugar", "unit": "Bag", "price": 6.0, "pw": 0.5, "pww": 0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Dubai Chocolate Small", "unit": "Piece", "price": 1.35, "pw": 5.0, "pww": 3.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Dubai Chocolate Big", "unit": "Piece", "price": 4.75, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Baklava Slice Double", "unit": "Case/72", "price": 59.5, "pw": 24.0, "pww": 10.0, "ps": 36.0, "piece": true, "upc": 72}, {"cat": "2. SNACKS & FOOD", "name": "Kadaifi", "unit": "Case/10", "price": 69.0, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 10}, {"cat": "2. SNACKS & FOOD", "name": "Perrier", "unit": "Case/24", "price": 32.82, "pw": 0, "pww": 12.0, "ps": 0, "piece": true, "upc": 24}, {"cat": "2. SNACKS & FOOD", "name": "Texas Tea Strawberry", "unit": "Case/12", "price": 19.23, "pw": 0, "pww": 4.0, "ps": 0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "Texas Tea Sugar", "unit": "Case/12", "price": 19.23, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "Texas Tea Peach", "unit": "Case/12", "price": 19.23, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "Everything Bagels", "unit": "Piece", "price": 0.66, "pw": 13.0, "pww": 8.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Plain Bagels", "unit": "Piece", "price": 0.66, "pw": 8.0, "pww": 18.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "David Choc Chip Muffins", "unit": "Case/12", "price": 16.79, "pw": 18.0, "pww": 12.0, "ps": 30.0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "David Banana Nut Muffins", "unit": "Case/12", "price": 16.79, "pw": 24.0, "pww": 27.0, "ps": 31.0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "David Blueberry Muffins", "unit": "Case/12", "price": 16.79, "pw": 23.0, "pww": 22.0, "ps": 31.0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "David Chocolate Muffins", "unit": "Case/12", "price": 16.79, "pw": 17.0, "pww": 1.0, "ps": 23.0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "David Pistachio Muffins", "unit": "Case/12", "price": 16.79, "pw": 18.0, "pww": 20.0, "ps": 35.0, "piece": true, "upc": 12}, {"cat": "2. SNACKS & FOOD", "name": "David Red Velvet Muffin", "unit": "Case/14", "price": 18.79, "pw": 18.0, "pww": 24.0, "ps": 31.0, "piece": true, "upc": 14}, {"cat": "2. SNACKS & FOOD", "name": "David Brownie", "unit": "Piece", "price": 1.65, "pw": 0, "pww": 18.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Sliced Croissant", "unit": "Case/48", "price": 53.010000000000005, "pw": 66.0, "pww": 52.0, "ps": 28.0, "piece": true, "upc": 48}, {"cat": "2. SNACKS & FOOD", "name": "Chocolate Croissant", "unit": "Case/16", "price": 0, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 16}, {"cat": "2. SNACKS & FOOD", "name": "Gourmet Choc Croissant", "unit": "Case/80", "price": 0, "pw": 59.0, "pww": 10.0, "ps": 0, "piece": true, "upc": 80}, {"cat": "2. SNACKS & FOOD", "name": "Turkey Breakfast Pizza", "unit": "Case/100", "price": 77.79, "pw": 15.0, "pww": 47.0, "ps": 33.0, "piece": true, "upc": 100}, {"cat": "2. SNACKS & FOOD", "name": "Cinnamon Roll Swirl", "unit": "Case/100", "price": 0, "pw": 110.0, "pww": 11.0, "ps": 0, "piece": true, "upc": 100}, {"cat": "2. SNACKS & FOOD", "name": "Cherry Danish (frozen)", "unit": "Case/30", "price": 27.32, "pw": 18.0, "pww": 36.0, "ps": 13.0, "piece": true, "upc": 30}, {"cat": "2. SNACKS & FOOD", "name": "Cherry Danish (ready)", "unit": "Case/30", "price": 27.32, "pw": 14.0, "pww": 14.0, "ps": 7.0, "piece": true, "upc": 30}, {"cat": "2. SNACKS & FOOD", "name": "Cheese Danish", "unit": "Case/60", "price": 95.45, "pw": 6.0, "pww": 10.0, "ps": 18.0, "piece": true, "upc": 60}, {"cat": "2. SNACKS & FOOD", "name": "Almond Croissant", "unit": "Piece", "price": 0, "pw": 18.0, "pww": 5.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Biscuit Baked Butter Milk", "unit": "Box/96", "price": 56.0, "pw": 88.0, "pww": 10.0, "ps": 16.0, "piece": true, "upc": 96}, {"cat": "2. SNACKS & FOOD", "name": "Gordon Egg Scrambled", "unit": "Box/168", "price": 61.02, "pw": 164.0, "pww": 51.0, "ps": 114.0, "piece": true, "upc": 168}, {"cat": "2. SNACKS & FOOD", "name": "Sausage Patty Pork", "unit": "Box/132", "price": 37.89, "pw": 135.0, "pww": 90.0, "ps": 124.0, "piece": true, "upc": 132}, {"cat": "2. SNACKS & FOOD", "name": "Vegan Sausage Patties", "unit": "Box/112", "price": 74.66, "pw": 24.0, "pww": 40.0, "ps": 0, "piece": true, "upc": 112}, {"cat": "2. SNACKS & FOOD", "name": "Chicken Patties", "unit": "Box/128", "price": 58.660000000000004, "pw": 43.0, "pww": 100.0, "ps": 54.0, "piece": true, "upc": 128}, {"cat": "2. SNACKS & FOOD", "name": "Egg Bites Bacon", "unit": "Box/120", "price": 78.99000000000001, "pw": 0, "pww": 0, "ps": 52.0, "piece": true, "upc": 120}, {"cat": "2. SNACKS & FOOD", "name": "Egg Bites Cheese", "unit": "Box/120", "price": 70.89, "pw": 16.0, "pww": 34.0, "ps": 0, "piece": true, "upc": 120}, {"cat": "2. SNACKS & FOOD", "name": "Churros", "unit": "Box/50", "price": 33.99, "pw": 23.0, "pww": 9.0, "ps": 0, "piece": true, "upc": 50}, {"cat": "2. SNACKS & FOOD", "name": "Turkey Sausage Patty", "unit": "Box/137", "price": 73.24000000000001, "pw": 78.0, "pww": 45.0, "ps": 80.0, "piece": true, "upc": 137}, {"cat": "2. SNACKS & FOOD", "name": "Philadelphia Cream Cheese", "unit": "Box/100", "price": 55.0, "pw": 15.0, "pww": 36.0, "ps": 0, "piece": true, "upc": 100}, {"cat": "2. SNACKS & FOOD", "name": "American Cheese", "unit": "5 lbs", "price": 13.84, "pw": 0.5, "pww": 0.5, "ps": 1.2, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "White American Cheese", "unit": "200 Slices", "price": 19.23, "pw": 0.5, "pww": 0.5, "ps": 0.7000000000000001, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Pesto Sauce", "unit": "Jar", "price": 8.58, "pw": 0.5, "pww": 0, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Oven Roasted Turkey", "unit": "Pack", "price": 7.48, "pw": 0, "pww": 0, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Shredded Mozzarella", "unit": "5 lbs", "price": 13.83, "pw": 0, "pww": 0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Fresh Mozzarella", "unit": "32oz", "price": 8.28, "pw": 1.0, "pww": 0, "ps": 3.0, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Nutella Jar", "unit": "Jar", "price": 29.92, "pw": 0.1, "pww": 1.25, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Nutella Mini", "unit": "Box/120", "price": 38.63, "pw": 10.0, "pww": 23.0, "ps": 0, "piece": true, "upc": 120}, {"cat": "2. SNACKS & FOOD", "name": "Turkish Delight Pistachio", "unit": "Piece", "price": 10.0, "pw": 3.0, "pww": 10.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Turkish Delight Nar", "unit": "Piece", "price": 5.0, "pw": 8.0, "pww": 3.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Turkish Delight Findik", "unit": "Piece", "price": 5.0, "pw": 3.0, "pww": 5.0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Nestle Choc Chip", "unit": "72oz", "price": 17.0, "pw": 1.5, "pww": 0.6000000000000001, "ps": 1.0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Tonic Water", "unit": "33.8oz", "price": 1.5, "pw": 4.5, "pww": 15.5, "ps": 3.0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Marshmallow", "unit": "Bag", "price": 2.69, "pw": 0.5, "pww": 0, "ps": 0, "piece": true, "upc": 1}, {"cat": "2. SNACKS & FOOD", "name": "Ruffles", "unit": "Box/50", "price": 20.34, "pw": 1.1, "pww": 47.0, "ps": 23.0, "piece": true, "upc": 50}, {"cat": "3. POWDER & COFFEE", "name": "KATZ Fresh Brew Pack", "unit": "Case/40", "price": 119.5, "pw": 0.8, "pww": 35.0, "ps": 1.0, "piece": true, "upc": 40}, {"cat": "3. POWDER & COFFEE", "name": "Katz Old Fashioned Lemonade", "unit": "Bag", "price": 145.95, "pw": 0.8, "pww": 0.6000000000000001, "ps": 0.2, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Urn Brewer Cleaner", "unit": "Bottle", "price": 15.5, "pw": 1.0, "pww": 0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Organic Premium Black Tea", "unit": "Bag", "price": 65.22, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Tea Filter", "unit": "Box/70", "price": 55.0, "pw": 1.0, "pww": 0, "ps": 1.0, "piece": true, "upc": 70}, {"cat": "3. POWDER & COFFEE", "name": "Cold Brew KATZ", "unit": "Bag/2", "price": 119.5, "pw": 3.5, "pww": 3.0, "ps": 1.0, "piece": true, "upc": 2}, {"cat": "3. POWDER & COFFEE", "name": "Katz Velvet Espresso Beans", "unit": "Bag", "price": 23.900000000000002, "pw": 17.0, "pww": 19.0, "ps": 14.0, "piece": true, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Katz Matcha", "unit": "Bag", "price": 58.25, "pw": 0, "pww": 0, "ps": 1.0, "piece": true, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "French Beans Cold Brew", "unit": "Bag", "price": 20.3, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Decaf Coffee Single Pack", "unit": "Box/100", "price": 68.99000000000001, "pw": 0.1, "pww": 0.5, "ps": 0.5, "piece": true, "upc": 100}, {"cat": "3. POWDER & COFFEE", "name": "Ceremonial Matcha Powder", "unit": "Bag", "price": 24.0, "pw": 1.1, "pww": 1.0, "ps": 0.5, "piece": true, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Lemonade Powder", "unit": "Can", "price": 0, "pw": 0.1, "pww": 2.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Mocha Powder", "unit": "Bottle", "price": 21.490000000000002, "pw": 0, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Caramel Powder", "unit": "Bag", "price": 21.490000000000002, "pw": 0, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Vanilla Powder", "unit": "Bag", "price": 21.490000000000002, "pw": 0, "pww": 0, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "White Chocolate Powder", "unit": "Bag", "price": 21.490000000000002, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Chai Powder", "unit": "Bag", "price": 21.490000000000002, "pw": 0.5, "pww": 0.25, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Frappe Mix Naturel Base", "unit": "Bag", "price": 21.490000000000002, "pw": 2.75, "pww": 5.0, "ps": 3.5, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Matcha Green Tea (Frappe)", "unit": "Bag", "price": 24.490000000000002, "pw": 0.5, "pww": 0.25, "ps": 0.5, "piece": true, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Hot Chocolate Powder", "unit": "Can", "price": 19.0, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Salep Powder", "unit": "Box", "price": 13.0, "pw": 28.0, "pww": 34.0, "ps": 66.0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Barbie Powder", "unit": "Bag", "price": 24.490000000000002, "pw": 0.5, "pww": 0.5, "ps": 0.2, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Ken Powder", "unit": "Bag", "price": 24.490000000000002, "pw": 0.5, "pww": 0.5, "ps": 0.2, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Mango Powder", "unit": "Bag", "price": 24.490000000000002, "pw": 0.5, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Taro Powder", "unit": "Bag", "price": 24.490000000000002, "pw": 0, "pww": 0.5, "ps": 2.0, "piece": false, "upc": 1}, {"cat": "3. POWDER & COFFEE", "name": "Pistachio Powder", "unit": "Bag", "price": 24.490000000000002, "pw": 0.2, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "TEAS", "name": "English Breakfast Tea", "unit": "Piece", "price": 0.35000000000000003, "pw": 193.0, "pww": 100.0, "ps": 231.0, "piece": false, "upc": 1}, {"cat": "TEAS", "name": "Earl Grey Tea", "unit": "Piece", "price": 0.35000000000000003, "pw": 37.0, "pww": 74.0, "ps": 62.0, "piece": false, "upc": 1}, {"cat": "TEAS", "name": "Jasmine Green Tea", "unit": "Piece", "price": 0.35000000000000003, "pw": 46.0, "pww": 97.0, "ps": 167.0, "piece": false, "upc": 1}, {"cat": "TEAS", "name": "Hibiscus Tea", "unit": "Piece", "price": 0.35000000000000003, "pw": 70.0, "pww": 117.0, "ps": 15.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Almond Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 1.3, "ps": 6.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Banana Syrup", "unit": "Bottle", "price": 8.0, "pw": 1.2, "pww": 0, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Brown Butter Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Butter Pecan Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Caramel Apple Butter Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 1.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Caramel Syrup", "unit": "Bottle", "price": 8.0, "pw": 11.75, "pww": 0, "ps": 4.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Chai Tea Syrup", "unit": "Bottle", "price": 8.0, "pw": 4.5, "pww": 3.0, "ps": 3.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Cinnamon Bun Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.75, "pww": 2.0, "ps": 3.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Cinnamon Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.75, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Coconut Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.5, "pww": 1.5, "ps": 0.2, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Cucumber Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 1.75, "ps": 3.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Chocolate Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Dragon Fruit Syrup", "unit": "Bottle", "price": 8.0, "pw": 1.0, "pww": 0.1, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Gingerbread Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 2.3, "ps": 5.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Green Mint Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.5, "pww": 1.5, "ps": 4.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Hazelnut Syrup", "unit": "Bottle", "price": 8.0, "pw": 4.0, "pww": 5.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Honey Syrup", "unit": "Bottle", "price": 8.0, "pw": 4.5, "pww": 5.0, "ps": 5.75, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Irish Cream Syrup", "unit": "Bottle", "price": 8.0, "pw": 6.0, "pww": 5.0, "ps": 7.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Lavender Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.25, "pww": 5.5, "ps": 0.8500000000000001, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Peach Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.5, "pww": 0, "ps": 2.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Peppermint Syrup", "unit": "Bottle", "price": 8.0, "pw": 3.0, "pww": 2.8, "ps": 2.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Pistachio Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.75, "pww": 0.6000000000000001, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Praline Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 1.4, "ps": 2.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Pumpkin Spice Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Pure Cane Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.1, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Raspberry Syrup", "unit": "Bottle", "price": 8.0, "pw": 3.0, "pww": 0, "ps": 2.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Rose Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0.8, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Salted Caramel Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.4, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Caramel Syrup", "unit": "Bottle", "price": 8.0, "pw": 1.5, "pww": 4.0, "ps": 3.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Chocolate Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.0, "pww": 0.5, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Peanut Butter Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Hazelnut Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.75, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Irish Cream Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0.7000000000000001, "ps": 2.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Sweetener Syrup", "unit": "Bottle", "price": 8.0, "pw": 1.5, "pww": 0, "ps": 3.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF Vanilla Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.5, "pww": 2.25, "ps": 2.4, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "SF White Chocolate Syrup", "unit": "Bottle", "price": 8.0, "pw": 0.5, "pww": 0.5, "ps": 0.4, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Spiced Brown Sugar Syrup", "unit": "Bottle", "price": 8.0, "pw": 3.0, "pww": 3.0, "ps": 6.2, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Strawberry Syrup", "unit": "Bottle", "price": 8.0, "pw": 3.5, "pww": 2.0, "ps": 2.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Toasted Almond Mocha Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 1.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Toasted Marshmallow Syrup", "unit": "Bottle", "price": 8.0, "pw": 4.0, "pww": 5.0, "ps": 4.5, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Toffee Nut Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.0, "pww": 3.8, "ps": 6.25, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Vanilla Syrup", "unit": "Bottle", "price": 8.0, "pw": 7.25, "pww": 4.0, "ps": 5.2, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "White Chocolate Syrup", "unit": "Bottle", "price": 8.0, "pw": 5.5, "pww": 4.0, "ps": 3.25, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Peach Tea Syrup", "unit": "Bottle", "price": 8.0, "pw": 4.2, "pww": 0.4, "ps": 1.25, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Blackberry Syrup", "unit": "Bottle", "price": 8.0, "pw": 2.0, "pww": 1.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Ginger Syrup", "unit": "Bottle", "price": 8.0, "pw": 0, "pww": 0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Hersheys Chocolate Sauce", "unit": "Bottle", "price": 18.990000000000002, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Dona Chai Concentrate", "unit": "Container", "price": 16.490000000000002, "pw": 5.0, "pww": 4.75, "ps": 0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Puree Strawberry", "unit": "Bottle", "price": 10.99, "pw": 2.0, "pww": 9.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Puree Peach", "unit": "Bottle", "price": 10.99, "pw": 1.0, "pww": 0, "ps": 0.75, "piece": false, "upc": 1}, {"cat": "4. SYRUPS", "name": "Puree Mango", "unit": "Bottle", "price": 10.99, "pw": 5.0, "pww": 5.0, "ps": 4.5, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Egg Sausage Biscuit VEGAN", "unit": "Piece", "price": 3.0, "pw": 13.0, "pww": 28.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Grilled Cheese", "unit": "Piece", "price": 3.0, "pw": 21.0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Turkey Grilled Cheese", "unit": "Piece", "price": 3.0, "pw": 22.0, "pww": 7.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Mozzarella Pesto", "unit": "Piece", "price": 3.0, "pw": 8.0, "pww": 7.0, "ps": 3.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Turkey Egg Sausage Biscuit", "unit": "Piece", "price": 3.0, "pw": 25.0, "pww": 28.0, "ps": 32.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Egg Sausage Biscuit PORK", "unit": "Piece", "price": 3.0, "pw": 30.0, "pww": 36.0, "ps": 29.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Egg Sausage Chicken", "unit": "Piece", "price": 3.0, "pw": 36.0, "pww": 31.0, "ps": 10.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Egg Cheese Biscuit", "unit": "Piece", "price": 3.0, "pw": 13.0, "pww": 34.0, "ps": 9.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Nutella Croissant", "unit": "Piece", "price": 3.0, "pw": 17.0, "pww": 12.0, "ps": 16.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Spiral Pie Spinach (frozen)", "unit": "Box/60", "price": 79.0, "pw": 37.0, "pww": 7.0, "ps": 12.0, "piece": true, "upc": 60}, {"cat": "READY ITEMS", "name": "Spiral Pie Spinach (ready)", "unit": "Box/60", "price": 79.0, "pw": 12.0, "pww": 7.0, "ps": 10.0, "piece": true, "upc": 60}, {"cat": "READY ITEMS", "name": "Cheese Bomb", "unit": "Piece", "price": 3.0, "pw": 8.0, "pww": 0, "ps": 9.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Chocolate Bomb", "unit": "Piece", "price": 1.5, "pw": 1.0, "pww": 9.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Almond Croissant (ready)", "unit": "Piece", "price": 3.0, "pw": 18.0, "pww": 5.0, "ps": 20.0, "piece": true, "upc": 1}, {"cat": "READY ITEMS", "name": "Mediterranean", "unit": "Piece", "price": 3.0, "pw": 14.0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Texmex", "unit": "Piece", "price": 3.0, "pw": 11.0, "pww": 16.0, "ps": 21.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Caprese", "unit": "Piece", "price": 3.0, "pw": 4.0, "pww": 0, "ps": 20.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Boss Sandwich", "unit": "Piece", "price": 3.0, "pw": 12.0, "pww": 5.0, "ps": 24.0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Halal Panini", "unit": "Piece", "price": 4.0, "pw": 0, "pww": 4.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "READY ITEMS", "name": "Cold Brew", "unit": "Jug", "price": 0, "pw": 2.0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Oreos", "unit": "Piece", "price": 0.66, "pw": 6.0, "pww": 2.0, "ps": 3.0, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Graham Crackers", "unit": "Box/4", "price": 8.99, "pw": 1.5, "pww": 5.5, "ps": 1.0, "piece": true, "upc": 4}, {"cat": "5. SWEETENERS & OTHERS", "name": "Dried Strawberries", "unit": "Bag", "price": 132.49, "pw": 0.2, "pww": 0.25, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Cinnamon Powder", "unit": "Container", "price": 18.490000000000002, "pw": 0.4, "pww": 0.5, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "White Sugar Packs", "unit": "Box", "price": 13.98, "pw": 0.30000000000000004, "pww": 1.6, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Splenda", "unit": "Box", "price": 37.09, "pw": 0.5, "pww": 0, "ps": 0.8, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Sweet N Low", "unit": "Box", "price": 19.990000000000002, "pw": 0.5, "pww": 0.8, "ps": 0.8, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Truvia", "unit": "Box", "price": 15.98, "pw": 0, "pww": 0, "ps": 0.8, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Stevia", "unit": "Box", "price": 20.38, "pw": 0.30000000000000004, "pww": 0.4, "ps": 0.8, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Honey", "unit": "Bottle", "price": 12.0, "pw": 0.75, "pww": 1.0, "ps": 0.75, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Powder Sugar", "unit": "Bag", "price": 6.0, "pw": 0.75, "pww": 1.5, "ps": 0.2, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Dog Treats", "unit": "Container", "price": 15.98, "pw": 0.5, "pww": 0, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "5. SWEETENERS & OTHERS", "name": "Charger Whipped Cream", "unit": "Box/100", "price": 50.0, "pw": 20.0, "pww": 45.0, "ps": 25.0, "piece": true, "upc": 100}, {"cat": "6. PACKAGING", "name": "#12 Paper Bags", "unit": "Pack/500", "price": 20.98, "pw": 3.0, "pww": 0.35000000000000003, "ps": 0.5, "piece": false, "upc": 500}, {"cat": "6. PACKAGING", "name": "#8 Paper Bags", "unit": "Pack/500", "price": 15.98, "pw": 1.0, "pww": 0.6000000000000001, "ps": 1.0, "piece": false, "upc": 500}, {"cat": "6. PACKAGING", "name": "#4 Paper Bags", "unit": "Pack/500", "price": 9.98, "pw": 2.0, "pww": 0.8, "ps": 1.0, "piece": false, "upc": 500}, {"cat": "6. PACKAGING", "name": "Shopping Bag", "unit": "Pack/250", "price": 39.59, "pw": 1.0, "pww": 0.8, "ps": 0.5, "piece": false, "upc": 250}, {"cat": "6. PACKAGING", "name": "Biscuit Paper Bag", "unit": "Box/2000", "price": 48.49, "pw": 1.0, "pww": 1.3, "ps": 1.0, "piece": false, "upc": 2000}, {"cat": "6. PACKAGING", "name": "Parchment Paper", "unit": "Box/1000", "price": 36.99, "pw": 0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1000}, {"cat": "6. PACKAGING", "name": "Food Wrap Paper", "unit": "Roll", "price": 15.0, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "6. PACKAGING", "name": "Napkins", "unit": "Pack/4", "price": 30.0, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 4}, {"cat": "6. PACKAGING", "name": "Muffin Container", "unit": "Pack/400", "price": 57.99, "pw": 1.0, "pww": 1.2, "ps": 0.75, "piece": false, "upc": 400}, {"cat": "6. PACKAGING", "name": "Egg Bites Container", "unit": "Box/1000", "price": 29.28, "pw": 0.5, "pww": 0.30000000000000004, "ps": 0.2, "piece": false, "upc": 1000}, {"cat": "6. PACKAGING", "name": "Sleeve", "unit": "Box/1000", "price": 57.0, "pw": 0.8500000000000001, "pww": 800.0, "ps": 1.5, "piece": false, "upc": 1000}, {"cat": "6. PACKAGING", "name": "Bunny Stoppers", "unit": "Box", "price": 306.0, "pw": 8.0, "pww": 9.0, "ps": 9.0, "piece": false, "upc": 1}, {"cat": "CUPS & LIDS", "name": "12oz Hot Cups", "unit": "Box/1000", "price": 73.0, "pw": 4623.0, "pww": 10000.0, "ps": 6800.0, "piece": true, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "16oz Hot Cups", "unit": "Box/1000", "price": 80.0, "pw": 1516.0, "pww": 2100.0, "ps": 2905.0, "piece": true, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "20oz Hot Cups", "unit": "Box/1000", "price": 92.0, "pw": 2902.0, "pww": 5400.0, "ps": 3449.0, "piece": true, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "12oz Cold Cups", "unit": "Box/1000", "price": 75.0, "pw": 3059.0, "pww": 950.0, "ps": 1570.0, "piece": true, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "16oz Cold Cups", "unit": "Box/1000", "price": 81.0, "pw": 1706.0, "pww": 1950.0, "ps": 1371.0, "piece": true, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "24oz Cold Cups", "unit": "Box/600", "price": 59.0, "pw": 981.0, "pww": 1450.0, "ps": 1514.0, "piece": true, "upc": 600}, {"cat": "CUPS & LIDS", "name": "32oz Cold Cups", "unit": "Box/500", "price": 71.0, "pw": 1492.0, "pww": 1486.0, "ps": 1495.0, "piece": true, "upc": 500}, {"cat": "CUPS & LIDS", "name": "Hot Black Lids", "unit": "Box/500", "price": 22.98, "pw": 1.4, "pww": 200.0, "ps": 0.5, "piece": false, "upc": 500}, {"cat": "CUPS & LIDS", "name": "Sipping Lids", "unit": "Box/1000", "price": 60.0, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "Cold Flat Lids", "unit": "Box/1000", "price": 49.99, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "Dome Lids D 107", "unit": "Box/1000", "price": 30.0, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "D-98 Pakman Sip Lid", "unit": "Box/1000", "price": 26.0, "pw": 2.2, "pww": 1.0, "ps": 1.8, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "Pakman F98 Flat Lid", "unit": "Box/1000", "price": 21.0, "pw": 3.0, "pww": 2.0, "ps": 0.2, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "32oz Flat Lid F107", "unit": "Box/1000", "price": 30.0, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "Pakman 98 Dome Lid", "unit": "Pack/1000", "price": 55.0, "pw": 1.4, "pww": 1.0, "ps": 1.5, "piece": false, "upc": 1000}, {"cat": "CUPS & LIDS", "name": "Straws 10 inches", "unit": "Carton/500", "price": 5.99, "pw": 0.5, "pww": 2.5, "ps": 3.0, "piece": false, "upc": 500}, {"cat": "CUPS & LIDS", "name": "Straws 7in Jumbo", "unit": "Carton/500", "price": 4.49, "pw": 1.5, "pww": 2.0, "ps": 1.0, "piece": false, "upc": 500}, {"cat": "CUPS & LIDS", "name": "Drink Carriers (4 cup)", "unit": "Case/300", "price": 38.49, "pw": 170.0, "pww": 0.9500000000000001, "ps": 1.0, "piece": true, "upc": 300}, {"cat": "CUPS & LIDS", "name": "Drink Carriers (2 cup)", "unit": "Case/300", "price": 24.490000000000002, "pw": 230.0, "pww": 1.1, "ps": 0.75, "piece": true, "upc": 300}, {"cat": "CUPS & LIDS", "name": "2oz Portion Cups", "unit": "Box/2500", "price": 28.490000000000002, "pw": 0.5, "pww": 0.5, "ps": 0.5, "piece": true, "upc": 2500}, {"cat": "CUPS & LIDS", "name": "Portion Cup Lids", "unit": "Box/2500", "price": 31.98, "pw": 0.4, "pww": 0.5, "ps": 1.0, "piece": false, "upc": 2500}, {"cat": "CLEANING", "name": "Bleach", "unit": "Jug", "price": 6.72, "pw": 2.75, "pww": 6.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Glass Cleaner", "unit": "Bottle", "price": 4.0, "pw": 1.0, "pww": 3.5, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Counter Top Cleaner", "unit": "Bottle", "price": 6.25, "pw": 4.0, "pww": 8.0, "ps": 5.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Oven Cleaner", "unit": "Bottle", "price": 13.0, "pw": 1.0, "pww": 1.0, "ps": 0.1, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Floor Cleaner", "unit": "Jug", "price": 7.98, "pw": 1.0, "pww": 3.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Dish Soap", "unit": "Jug", "price": 2.0, "pw": 1.5, "pww": 0.1, "ps": 0.5, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Toilet Bowl Cleaner", "unit": "Jug", "price": 2.3, "pw": 2.1, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Hand Soap", "unit": "Box", "price": 9.0, "pw": 3.0, "pww": 2.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Sanitizer Tablets", "unit": "Bottle", "price": 8.5, "pw": 0.75, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Rinza Milk Cleaner", "unit": "Bottle", "price": 15.0, "pw": 4.0, "pww": 0.5, "ps": 5.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Cafiza Espresso Cleaner", "unit": "Bottle", "price": 9.99, "pw": 1.0, "pww": 0.5, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Lysol", "unit": "Can", "price": 14.99, "pw": 0, "pww": 0, "ps": 0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Freezer Clean", "unit": "Bottle", "price": 11.99, "pw": 2.0, "pww": 4.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Centerpull Towel", "unit": "Roll", "price": 3.0, "pw": 0, "pww": 0, "ps": 2.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Toilet Paper", "unit": "Pack/45", "price": 26.830000000000002, "pw": 32.0, "pww": 38.0, "ps": 15.0, "piece": true, "upc": 45}, {"cat": "CLEANING", "name": "Red Dye", "unit": "Bottle", "price": 11.5, "pw": 1.0, "pww": 1.0, "ps": 0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Purple Dye", "unit": "Bottle", "price": 11.5, "pw": 1.0, "pww": 1.0, "ps": 1.0, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Food Handling Gloves", "unit": "Pack/4", "price": 9.98, "pw": 0.5, "pww": 7.0, "ps": 8.0, "piece": true, "upc": 4}, {"cat": "CLEANING", "name": "Plastic Knives", "unit": "Box/600", "price": 13.98, "pw": 0.5, "pww": 0, "ps": 0, "piece": true, "upc": 600}, {"cat": "CLEANING", "name": "Plastic Fork", "unit": "Box/600", "price": 13.98, "pw": 0.1, "pww": 0, "ps": 1.0, "piece": true, "upc": 600}, {"cat": "CLEANING", "name": "Trash Bags 33gal Black", "unit": "Roll", "price": 19.0, "pw": 1.5, "pww": 1.0, "ps": 0.25, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Trash Bags 13gal White", "unit": "Roll", "price": 9.49, "pw": 2.0, "pww": 1.5, "ps": 0.25, "piece": false, "upc": 1}, {"cat": "CLEANING", "name": "Trash Bag 33gal Purple", "unit": "Box/200", "price": 17.98, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 200}, {"cat": "CLEANING", "name": "Trash Bag 55gal", "unit": "Box/80", "price": 24.98, "pw": 0, "pww": 0, "ps": 0, "piece": true, "upc": 80}, {"cat": "CLEANING", "name": "pH Test Strips", "unit": "Box/10", "price": 6.98, "pw": 0, "pww": 0, "ps": 1.0, "piece": true, "upc": 10}];
+var CATS = ["SAUCES & TIKI", "1. MILK ITEMS", "2. SNACKS & FOOD", "3. POWDER & COFFEE", "TEAS", "4. SYRUPS", "READY ITEMS", "5. SWEETENERS & OTHERS", "6. PACKAGING", "CUPS & LIDS", "CLEANING"];
+var STORES = {westpark: 'Westpark', white_wing: 'White Wing', spring: 'Spring'};
+
+// ==== STATE ====
+var currentStore = 'westpark';
+var state = {westpark: {}, white_wing: {}, spring: {}};
+
+function showError(msg) {
+  var el = document.getElementById('err');
+  el.textContent = 'HATA: ' + msg;
+  el.classList.add('show');
+}
+
+try {
+  var saved = localStorage.getItem('beansup_v5');
+  if (saved) state = JSON.parse(saved);
+  if (!state.westpark) state.westpark = {};
+  if (!state.white_wing) state.white_wing = {};
+  if (!state.spring) state.spring = {};
+} catch(e) {
+  showError('localStorage okuma: ' + e.message);
+}
+
+function save() {
+  try {
+    localStorage.setItem('beansup_v5', JSON.stringify(state));
+  } catch(e) {
+    showError('Kayıt hatası: ' + e.message);
+  }
+}
+
+function fmtMoney(v) {
+  return '$' + Number(v).toFixed(2);
+}
+
+function effPrice(it) {
+  if (it.piece && it.upc > 1) return it.price / it.upc;
+  return it.price;
+}
+
+function prevQty(it, store) {
+  var key = store === 'westpark' ? 'pw' : (store === 'white_wing' ? 'pww' : 'ps');
+  var p = it[key] || 0;
+  if (it.piece && it.upc > 1) return p * it.upc;
+  return p;
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// ==== RENDER ====
+function render() {
+  try {
+    var search = document.getElementById('search').value.toLowerCase().trim();
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+
+    // Group by category
+    var byCat = {};
+    for (var i = 0; i < ITEMS.length; i++) {
+      var it = ITEMS[i];
+      if (search && it.name.toLowerCase().indexOf(search) === -1) continue;
+      if (!byCat[it.cat]) byCat[it.cat] = [];
+      byCat[it.cat].push({it: it, idx: i});
+    }
+
+    for (var c = 0; c < CATS.length; c++) {
+      var cn = CATS[c];
+      if (!byCat[cn]) continue;
+      var rows = byCat[cn];
+
+      var counted = 0, total = rows.length, catVal = 0;
+      for (var r = 0; r < rows.length; r++) {
+        var k = rows[r].idx;
+        var v = state[currentStore][k];
+        if (v !== undefined && v !== null && v !== '') {
+          counted++;
+          catVal += Number(v) * effPrice(rows[r].it);
+        }
+      }
+
+      var section = document.createElement('div');
+      section.id = 'sec-' + c;
+
+      var head = document.createElement('div');
+      head.className = 'cat-header';
+      head.innerHTML = '<span>' + escHtml(cn) + '</span>' +
+        '<div class="cat-meta">' +
+          '<span class="cat-count">' + counted + '/' + total + '</span>' +
+          '<span class="cat-value">' + fmtMoney(catVal) + '</span>' +
+        '</div>';
+      section.appendChild(head);
+
+      for (var r = 0; r < rows.length; r++) {
+        var entry = rows[r];
+        var it = entry.it;
+        var idx = entry.idx;
+        var val = state[currentStore][idx];
+        var hasVal = val !== undefined && val !== null && val !== '';
+        var prev = prevQty(it, currentStore);
+        var ep = effPrice(it);
+
+        var div = document.createElement('div');
+        div.className = 'item' + (hasVal ? ' counted' : '') + (it.piece ? ' piece' : '');
+
+        var diffPill = '';
+        if (hasVal) {
+          var d = Number(val) - prev;
+          if (Math.abs(d) >= 0.05) {
+            var cls = d > 0 ? 'dup' : 'ddn';
+            var ar = d > 0 ? '▲' : '▼';
+            diffPill = '<span class="pill ' + cls + '">' + ar + ' ' + Math.abs(Math.round(d * 100) / 100) + '</span>';
+          }
+        }
+
+        var unitDisp = it.unit || '';
+        if (it.piece) unitDisp = unitDisp + ' → adet';
+
+        var meta = '<span class="pill">' + escHtml(unitDisp) + '</span>';
+        if (ep > 0) {
+          meta += '<span class="pill">' + fmtMoney(ep) + (it.piece ? '/adet' : '/' + escHtml(it.unit)) + '</span>';
+        }
+        if (prev > 0) {
+          meta += '<span class="pill">geçen: ' + (Math.round(prev * 100) / 100) + '</span>';
+        }
+        if (hasVal && ep > 0) {
+          meta += '<span class="pill value">' + fmtMoney(Number(val) * ep) + '</span>';
+        }
+        meta += diffPill;
+
+        div.innerHTML =
+          '<div class="item-row">' +
+            '<div class="item-info">' +
+              '<div class="item-name">' +
+                '<span class="badge ' + (it.piece ? 'piece' : 'case') + '">' + (it.piece ? 'ADET' : 'KASA') + '</span>' +
+                escHtml(it.name) +
+              '</div>' +
+              '<div class="item-meta">' + meta + '</div>' +
+            '</div>' +
+            '<div class="controls">' +
+              '<button class="btn-q btn-minus" data-idx="' + idx + '" data-d="-1">−</button>' +
+              '<input type="number" inputmode="decimal" step="' + (it.piece ? '1' : '0.5') + '" class="qty-input" data-idx="' + idx + '" value="' + (hasVal ? val : '') + '" placeholder="0">' +
+              '<button class="btn-q btn-plus" data-idx="' + idx + '" data-d="1">+</button>' +
+            '</div>' +
+          '</div>';
+
+        section.appendChild(div);
+      }
+
+      list.appendChild(section);
+    }
+
+    // Wire up buttons
+    var btns = list.querySelectorAll('.btn-q');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].addEventListener('click', onBtn);
+    }
+    var inps = list.querySelectorAll('.qty-input');
+    for (var i = 0; i < inps.length; i++) {
+      inps[i].addEventListener('input', onInput);
+    }
+
+    renderJump();
+    updateProgress();
+    updateStoreValue();
+  } catch(e) {
+    showError('render: ' + e.message + '\n' + e.stack);
+  }
+}
+
+function onBtn(e) {
+  var idx = e.currentTarget.dataset.idx;
+  var d = parseFloat(e.currentTarget.dataset.d);
+  var cur = Number(state[currentStore][idx] || 0);
+  var next = Math.max(0, Math.round((cur + d) * 100) / 100);
+  state[currentStore][idx] = next;
+  save();
+  render();
+}
+
+function onInput(e) {
+  var idx = e.currentTarget.dataset.idx;
+  var v = e.currentTarget.value.trim();
+  if (v === '') {
+    delete state[currentStore][idx];
+  } else {
+    var n = parseFloat(v);
+    if (!isNaN(n) && n >= 0) state[currentStore][idx] = n;
+  }
+  save();
+  updateProgress();
+  updateStoreValue();
+}
+
+function renderJump() {
+  var bar = document.getElementById('cat-jump');
+  bar.innerHTML = '';
+  for (var c = 0; c < CATS.length; c++) {
+    var cn = CATS[c];
+    var total = 0, counted = 0;
+    for (var i = 0; i < ITEMS.length; i++) {
+      if (ITEMS[i].cat === cn) {
+        total++;
+        var v = state[currentStore][i];
+        if (v !== undefined && v !== null && v !== '') counted++;
+      }
+    }
+    var btn = document.createElement('button');
+    btn.textContent = cn.replace(/^\d+\.\s*/, '');
+    if (counted === total && total > 0) btn.className = 'done';
+    (function(cIdx) {
+      btn.addEventListener('click', function() {
+        var t = document.getElementById('sec-' + cIdx);
+        if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'});
+      });
+    })(c);
+    bar.appendChild(btn);
+  }
+}
+
+function updateProgress() {
+  var total = ITEMS.length;
+  var counted = 0;
+  for (var k in state[currentStore]) {
+    if (state[currentStore][k] !== undefined) counted++;
+  }
+  var pct = total ? Math.round(counted / total * 100) : 0;
+  document.getElementById('prog-text').textContent = counted + ' / ' + total;
+  document.getElementById('prog-pct').textContent = pct + '%';
+  document.getElementById('prog-fill').style.width = pct + '%';
+}
+
+function updateStoreValue() {
+  var cur = 0, prev = 0;
+  for (var i = 0; i < ITEMS.length; i++) {
+    var v = state[currentStore][i];
+    if (v !== undefined) cur += Number(v) * effPrice(ITEMS[i]);
+    var pk = currentStore === 'westpark' ? 'pw' : (currentStore === 'white_wing' ? 'pww' : 'ps');
+    prev += (ITEMS[i][pk] || 0) * ITEMS[i].price;
+  }
+  document.getElementById('store-value').textContent = fmtMoney(cur);
+  var diffEl = document.getElementById('value-diff');
+  var keys = Object.keys(state[currentStore]).filter(function(k) {
+    return state[currentStore][k] !== undefined;
+  });
+  if (keys.length === 0) {
+    diffEl.innerHTML = '<span style="color:#D4A574;">geçen ay: ' + fmtMoney(prev) + '</span>';
+  } else {
+    var d = cur - prev;
+    var pct = prev > 0 ? (d / prev * 100) : 0;
+    var cls = d >= 0 ? 'diff-up' : 'diff-down';
+    var ar = d >= 0 ? '▲' : '▼';
+    diffEl.innerHTML = 'geçen: ' + fmtMoney(prev) + ' <span class="' + cls + '">' + ar + ' ' + fmtMoney(Math.abs(d)) + ' (' + (d>=0?'+':'') + pct.toFixed(1) + '%)</span>';
+  }
+}
+
+// Tabs
+var tabs = document.querySelectorAll('.tab');
+for (var i = 0; i < tabs.length; i++) {
+  tabs[i].addEventListener('click', function(e) {
+    for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+    e.currentTarget.classList.add('active');
+    currentStore = e.currentTarget.dataset.store;
+    document.getElementById('search').value = '';
+    render();
+    window.scrollTo({top: 0});
+  });
+}
+
+document.getElementById('search').addEventListener('input', render);
+
+function showSummary() {
+  var msg = '';
+  for (var sid in STORES) {
+    var c = 0, v = 0;
+    for (var k in state[sid]) {
+      if (state[sid][k] !== undefined) {
+        c++;
+        v += Number(state[sid][k]) * effPrice(ITEMS[k]);
+      }
+    }
+    msg += STORES[sid] + ': ' + c + '/' + ITEMS.length + ' — ' + fmtMoney(v) + '\n';
+  }
+  alert('📊 SAYIM ÖZETİ\n\n' + msg);
+}
+
+function exportCSV() {
+  var rows = [['Category','Item','Unit','Mode','Price','WP_prev','WP_cur','WP_val','WW_prev','WW_cur','WW_val','SP_prev','SP_cur','SP_val']];
+  for (var i = 0; i < ITEMS.length; i++) {
+    var it = ITEMS[i];
+    var ep = effPrice(it);
+    var wp = state.westpark[i], ww = state.white_wing[i], sp = state.spring[i];
+    rows.push([
+      it.cat, it.name, it.unit, it.piece ? 'piece' : 'case', ep,
+      prevQty(it,'westpark'), wp !== undefined ? wp : '', wp !== undefined ? Number(wp)*ep : '',
+      prevQty(it,'white_wing'), ww !== undefined ? ww : '', ww !== undefined ? Number(ww)*ep : '',
+      prevQty(it,'spring'), sp !== undefined ? sp : '', sp !== undefined ? Number(sp)*ep : ''
+    ]);
+  }
+  var csv = rows.map(function(r) {
+    return r.map(function(c) { return '"' + String(c).replace(/"/g,'""') + '"'; }).join(',');
+  }).join('\n');
+  var blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var t = new Date();
+  var fn = 'beansup_sayim_' + t.getFullYear() + '_' + String(t.getMonth()+1).padStart(2,'0') + '_' + String(t.getDate()).padStart(2,'0') + '.csv';
+  var a = document.createElement('a');
+  a.href = url; a.download = fn;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('CSV indirildi');
+}
+
+function resetStore() {
+  if (!confirm(STORES[currentStore] + ' tüm sayım silinecek. Emin misin?')) return;
+  state[currentStore] = {};
+  save();
+  render();
+  toast(STORES[currentStore] + ' sıfırlandı');
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2000);
+}
+
+// Init — wrapped in try
+try {
+  render();
+} catch(e) {
+  showError('Init hatası: ' + e.message);
+}
+
+// Password lock
+(function() {
+  var PASSWORD = '990099';
+  var STORAGE_KEY = 'beansup_monthly_unlocked';
+
+  function unlock() {
+    document.getElementById('login-overlay').classList.add('hidden');
+    try { sessionStorage.setItem(STORAGE_KEY, '1'); } catch(e) {}
+  }
+
+  // Auto-unlock if already unlocked this session
+  try {
+    if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+      unlock();
+    }
+  } catch(e) {}
+
+  function tryLogin() {
+    var pw = document.getElementById('login-pw').value;
+    var err = document.getElementById('login-err');
+    if (pw === PASSWORD) {
+      err.textContent = '';
+      unlock();
+    } else {
+      err.textContent = 'Wrong password';
+      document.getElementById('login-pw').value = '';
+    }
+  }
+
+  document.getElementById('login-btn').addEventListener('click', tryLogin);
+  document.getElementById('login-pw').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') tryLogin();
+  });
+})();
+</script>
+</body>
+</html>

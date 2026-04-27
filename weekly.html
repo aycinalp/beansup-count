@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Beans Up — Daily & Weekly Count</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #FFF8F0; color: #2C1810; padding-bottom: 110px;
+}
+header {
+  background: #2C1810; color: #FFF8F0; padding: 12px 16px;
+  position: sticky; top: 0; z-index: 100;
+}
+.title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.title .accent { color: #F16333; }
+
+.store-row {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.store-row select {
+  flex: 1; padding: 8px 10px; font-size: 14px; font-weight: 600;
+  background: #3d2418; color: #FFF8F0; border: 1px solid #5a3a26;
+  border-radius: 8px;
+}
+
+.tabs { display: flex; gap: 4px; }
+.tab {
+  flex: 1; padding: 10px 4px; background: #3d2418; color: #D4A574;
+  border: none; border-radius: 8px; font-size: 11px; font-weight: 600;
+  cursor: pointer; line-height: 1.3;
+}
+.tab.active { background: #F16333; color: white; }
+.tab .emoji { font-size: 18px; display: block; margin-bottom: 2px; }
+
+.info-bar {
+  background: #3d2418; color: #D4A574;
+  padding: 8px 16px; font-size: 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.info-bar .progress {
+  flex: 1; height: 6px; background: #2C1810; border-radius: 3px;
+  margin: 0 12px; overflow: hidden;
+}
+.info-bar .pfill { height: 100%; background: #F16333; width: 0%; transition: width 0.3s; }
+
+.cat-header {
+  background: #D4A574; color: #2C1810;
+  padding: 10px 16px; font-weight: 700; font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.item {
+  background: white; margin: 6px 10px; padding: 12px;
+  border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-left: 4px solid transparent;
+  display: flex; align-items: center; gap: 10px;
+}
+.item.counted { border-left-color: #F16333; background: #fff8f0; }
+.item-info { flex: 1; min-width: 0; }
+.item-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+.item-unit { font-size: 11px; color: #8a7560; }
+
+.controls { display: flex; align-items: center; gap: 4px; }
+.btn-q {
+  width: 36px; height: 36px; border: none; border-radius: 8px;
+  font-size: 20px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-minus { background: #f0e5d0; color: #2C1810; }
+.btn-plus { background: #F16333; color: white; }
+.qty-input {
+  width: 56px; height: 36px;
+  text-align: center; font-size: 16px; font-weight: 600;
+  border: 1px solid #D4A574; border-radius: 8px;
+  background: white; color: #2C1810;
+}
+
+/* Frozen 3-state buttons */
+.frozen-btns { display: flex; gap: 4px; }
+.frozen-btn {
+  padding: 8px 12px; border: 2px solid #D4A574; border-radius: 8px;
+  background: white; font-size: 12px; font-weight: 600;
+  cursor: pointer; color: #8a6a3a;
+}
+.frozen-btn.active.LOW { background: #c44; color: white; border-color: #c44; }
+.frozen-btn.active.MED { background: #e8a83c; color: white; border-color: #e8a83c; }
+.frozen-btn.active.FULL { background: #4a7a5c; color: white; border-color: #4a7a5c; }
+
+/* Order list — free text */
+.order-add {
+  display: flex; gap: 6px; padding: 10px;
+  background: white; margin: 6px 10px; border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.order-add input {
+  flex: 1; padding: 8px 10px; font-size: 14px;
+  border: 1px solid #D4A574; border-radius: 6px;
+}
+.order-add button {
+  padding: 8px 14px; background: #F16333; color: white;
+  border: none; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
+.order-item {
+  background: white; margin: 4px 10px; padding: 10px 12px;
+  border-radius: 8px; display: flex; justify-content: space-between;
+  align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.order-item button {
+  background: none; border: none; color: #c44;
+  font-size: 18px; cursor: pointer;
+}
+
+/* Notes section at bottom of each tab */
+.notes-section {
+  margin: 16px 10px 6px 10px;
+  background: #fff8e8; border: 2px solid #D4A574;
+  border-radius: 10px; padding: 12px;
+}
+.notes-label {
+  font-size: 13px; font-weight: 700; color: #8a6a3a;
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.notes-input {
+  width: 100%; min-height: 80px; padding: 10px;
+  border: 1px solid #D4A574; border-radius: 8px;
+  font-size: 14px; font-family: inherit; resize: vertical;
+  background: white; color: #2C1810;
+}
+
+/* Bottom bar */
+.bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #2C1810; padding: 10px;
+  display: flex; gap: 6px; z-index: 100;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+}
+.bar button {
+  flex: 1; padding: 12px 4px; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.b-whatsapp { background: #25d366; color: white; }
+.b-copy { background: #3d2418; color: #D4A574; }
+.b-reset { background: #8a3a20; color: white; }
+
+#err {
+  background: #ffe5e5; color: #800;
+  padding: 12px; margin: 10px;
+  border-radius: 8px; font-size: 12px;
+  font-family: monospace; white-space: pre-wrap;
+  display: none;
+}
+#err.show { display: block; }
+
+.empty {
+  text-align: center; color: #8a6a3a; padding: 30px 20px;
+  font-size: 14px;
+}
+
+.toast {
+  position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  background: #2C1810; color: white;
+  padding: 10px 18px; border-radius: 20px;
+  font-size: 13px; z-index: 300;
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+.help-banner {
+  background: #fff8e8; padding: 8px 12px;
+  font-size: 11px; color: #8a6a3a;
+  border-bottom: 1px solid #D4A574;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">☕ Beans Up — <span class="accent">Count</span></div>
+  <div class="store-row">
+    <select id="store-select">
+      <option value="westpark">📍 Westpark</option>
+      <option value="white_wing">📍 White Wing</option>
+      <option value="spring">📍 Spring</option>
+    </select>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="daily"><span class="emoji">🥛</span>Daily</button>
+    <button class="tab" data-tab="weekly"><span class="emoji">📦</span>Weekly</button>
+    <button class="tab" data-tab="frozen"><span class="emoji">❄️</span>Frozen</button>
+    <button class="tab" data-tab="order"><span class="emoji">📝</span>Order</button>
+  </div>
+</header>
+
+<div class="info-bar">
+  <span id="info-label">Daily Milk Check</span>
+  <div class="progress"><div class="pfill" id="pfill"></div></div>
+  <span id="info-count">0 / 0</span>
+</div>
+
+<div class="help-banner" id="help-text">Count each item, write number. When done → tap WhatsApp button below.</div>
+
+<div id="err"></div>
+<main id="list"></main>
+
+<div class="bar">
+  <button class="b-copy" onclick="copyReport()">📋 Copy</button>
+  <button class="b-whatsapp" onclick="sendWhatsApp()">📱 Send WhatsApp</button>
+  <button class="b-reset" onclick="resetTab()">🗑️ Reset</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var DAILY = [{"name": "Whole Milk", "unit": "Gallon"}, {"name": "Almond Milk", "unit": "Half Gallon"}, {"name": "Coconut Milk", "unit": "Half Gallon"}, {"name": "Oat Milk", "unit": "Half Gallon"}, {"name": "Half & Half", "unit": "Half Gallon"}, {"name": "Heavy Whipping Cream", "unit": "Half Gallon"}, {"name": "Katz Velvet Espresso Beans", "unit": "Bag"}, {"name": "Vanilla Syrup", "unit": "Bottle"}, {"name": "Caramel Syrup", "unit": "Bottle"}, {"name": "Katz Cold Brew", "unit": "Bag"}];
+var WEEKLY = [{"name": "Caramel Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "Dark Chocolate Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "White Chocolate Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "Strawberry Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "Pumpkin Pie Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "Salted Caramel Sauce", "unit": "Jug", "category": "SAUCES", "count_mode": "case"}, {"name": "Whole Milk", "unit": "Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Almond Milk", "unit": "Half Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Coconut Milk", "unit": "Half Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Oat Milk", "unit": "Half Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Half & Half", "unit": "Half Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Heavy Whipping Cream", "unit": "Half Gallon", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "Whipped Cream", "unit": "Can", "category": "MILK ITEMS", "count_mode": "case"}, {"name": "KATZ Fresh Brew Pack", "unit": "Case/40", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Katz Old Fashioned Lemonade", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Organic Premium Black Tea", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Cold Brew KATZ", "unit": "Bag/2", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Katz Velvet Espresso Beans", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Katz Matcha", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "French Beans Cold Brew", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Decaf Coffee Single Pack", "unit": "Box/100", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Ceremonial Matcha Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Lemonade Powder", "unit": "Can", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Mocha Powder", "unit": "Bottle", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Caramel Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Vanilla Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Chai Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Frappe Mix Naturel Base", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Matcha Green Tea (Frappe)", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "piece"}, {"name": "Hot Chocolate Powder", "unit": "Can", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Salep Powder", "unit": "Box", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Mango Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Pistachio Powder", "unit": "Bag", "category": "POWDER & COFFEE", "count_mode": "case"}, {"name": "Almond Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Banana Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Brown Butter Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Butter Pecan Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Caramel Apple Butter Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Caramel Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Chai Tea Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Cinnamon Bun Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Cinnamon Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Coconut Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Cucumber Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Chocolate Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Dragon Fruit Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Gingerbread Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Green Mint Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Hazelnut Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Honey Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Irish Cream Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Lavender Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Peach Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Peppermint Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Pistachio Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Praline Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Pumpkin Spice Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Pure Cane Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Raspberry Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Rose Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Salted Caramel Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Caramel Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Chocolate Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Peanut Butter Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Hazelnut Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Irish Cream Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Sweetener Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF Vanilla Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "SF White Chocolate Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Spiced Brown Sugar Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Strawberry Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Toasted Almond Mocha Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Toasted Marshmallow Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Toffee Nut Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Vanilla Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "White Chocolate Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Peach Tea Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Blackberry Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Ginger Syrup", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Dona Chai Concentrate", "unit": "Container", "category": "SYRUPS", "count_mode": "case"}, {"name": "Puree Strawberry", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Puree Peach", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}, {"name": "Puree Mango", "unit": "Bottle", "category": "SYRUPS", "count_mode": "case"}];
+var WEEKLY_CATS = ["SAUCES", "MILK ITEMS", "POWDER & COFFEE", "SYRUPS"];
+var FROZEN = [{"name": "Cinnamon Roll Swirl", "unit": "Case/100"}, {"name": "Sliced Croissant", "unit": "Case/48"}, {"name": "Chocolate Croissant", "unit": "Case/16"}, {"name": "Gourmet Choc Croissant", "unit": "Case/80"}, {"name": "Almond Croissant", "unit": "Piece"}, {"name": "Spiral Pie Spinach (frozen)", "unit": "Box/60"}, {"name": "Ciabatta Bread", "unit": "Case/64"}, {"name": "Everything Bagels", "unit": "Piece"}, {"name": "Plain Bagels", "unit": "Piece"}, {"name": "Turkey Breakfast Pizza", "unit": "Case/100"}, {"name": "Sausage Patty Pork", "unit": "Box/132"}, {"name": "Chicken Patties", "unit": "Box/128"}, {"name": "Turkey Sausage Patty", "unit": "Box/137"}, {"name": "Egg Bites Bacon", "unit": "Box/120"}, {"name": "Egg Bites Cheese", "unit": "Box/120"}, {"name": "Biscuit Baked Butter Milk", "unit": "Box/96"}, {"name": "American Cheese", "unit": "5 lbs"}, {"name": "Fresh Mozzarella", "unit": "32oz"}, {"name": "Sun-Dried Tomato", "unit": "Bag"}];
+var STORES = {westpark: 'Westpark', white_wing: 'White Wing', spring: 'Spring'};
+
+var currentTab = 'daily';
+var currentStore = 'westpark';
+var state = {
+  westpark: {daily:{}, weekly:{}, frozen:{}, order:[], notes:{daily:'',weekly:'',frozen:'',order:''}},
+  white_wing: {daily:{}, weekly:{}, frozen:{}, order:[], notes:{daily:'',weekly:'',frozen:'',order:''}},
+  spring: {daily:{}, weekly:{}, frozen:{}, order:[], notes:{daily:'',weekly:'',frozen:'',order:''}}
+};
+
+function showError(msg) {
+  var el = document.getElementById('err');
+  el.textContent = 'ERROR: ' + msg;
+  el.classList.add('show');
+}
+
+try {
+  var saved = localStorage.getItem('beansup_weekly_v2');
+  if (saved) {
+    var parsed = JSON.parse(saved);
+    // Merge to ensure all keys exist
+    for (var s in STORES) {
+      if (parsed[s]) {
+        if (!parsed[s].daily) parsed[s].daily = {};
+        if (!parsed[s].weekly) parsed[s].weekly = {};
+        if (!parsed[s].frozen) parsed[s].frozen = {};
+        if (!parsed[s].order) parsed[s].order = [];
+        if (!parsed[s].notes) parsed[s].notes = {daily:'',weekly:'',frozen:'',order:''};
+        state[s] = parsed[s];
+      }
+    }
+  }
+} catch(e) {
+  showError('localStorage read: ' + e.message);
+}
+
+function save() {
+  try {
+    localStorage.setItem('beansup_weekly_v2', JSON.stringify(state));
+  } catch(e) {
+    showError('Save error: ' + e.message);
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+function todayStr() {
+  var d = new Date();
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+
+// ====== RENDER ======
+function render() {
+  try {
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+    var helpText = document.getElementById('help-text');
+    var infoLabel = document.getElementById('info-label');
+
+    if (currentTab === 'daily') {
+      infoLabel.textContent = '🥛 Daily Milk Check';
+      helpText.innerHTML = '<b>Daily check.</b> Count each milk + key items. Write the number you see in fridge. Half = 0.5';
+      renderItems('daily', DAILY, null);
+    } else if (currentTab === 'weekly') {
+      infoLabel.textContent = '📦 Weekly Count';
+      helpText.innerHTML = '<b>Weekly count (Mondays).</b> Count by case. Half case = 0.5. Group by category.';
+      renderItems('weekly', WEEKLY, WEEKLY_CATS);
+    } else if (currentTab === 'frozen') {
+      infoLabel.textContent = '❄️ Frozen Items';
+      helpText.innerHTML = '<b>Quick check.</b> Tap LOW / MED / FULL for each frozen item.';
+      renderFrozen();
+    } else if (currentTab === 'order') {
+      infoLabel.textContent = '📝 Order List';
+      helpText.innerHTML = '<b>Add what you need.</b> Type item + amount, tap Add. Will be in WhatsApp report.';
+      renderOrder();
+    }
+
+    renderNotes();
+    updateProgress();
+  } catch(e) {
+    showError('render: ' + e.message + '\n' + e.stack);
+  }
+}
+
+function renderItems(tabName, items, cats) {
+  var list = document.getElementById('list');
+  var st = state[currentStore][tabName];
+
+  if (cats) {
+    // Group by category
+    var byCat = {};
+    for (var i = 0; i < items.length; i++) {
+      var c = items[i].category || 'OTHER';
+      if (!byCat[c]) byCat[c] = [];
+      byCat[c].push({it: items[i], idx: i});
+    }
+    for (var c = 0; c < cats.length; c++) {
+      var cn = cats[c];
+      if (!byCat[cn]) continue;
+      var head = document.createElement('div');
+      head.className = 'cat-header';
+      head.textContent = cn;
+      list.appendChild(head);
+      for (var r = 0; r < byCat[cn].length; r++) {
+        list.appendChild(buildItemEl(byCat[cn][r].it, byCat[cn][r].idx, tabName, st));
+      }
+    }
+  } else {
+    for (var i = 0; i < items.length; i++) {
+      list.appendChild(buildItemEl(items[i], i, tabName, st));
+    }
+  }
+}
+
+function buildItemEl(it, idx, tabName, st) {
+  var val = st[idx];
+  var hasVal = val !== undefined && val !== null && val !== '';
+  var div = document.createElement('div');
+  div.className = 'item' + (hasVal ? ' counted' : '');
+  div.innerHTML =
+    '<div class="item-info">' +
+      '<div class="item-name">' + escHtml(it.name) + '</div>' +
+      '<div class="item-unit">' + escHtml(it.unit || '') + '</div>' +
+    '</div>' +
+    '<div class="controls">' +
+      '<button class="btn-q btn-minus" data-tab="' + tabName + '" data-idx="' + idx + '" data-d="-1">−</button>' +
+      '<input type="number" inputmode="decimal" step="0.5" class="qty-input" data-tab="' + tabName + '" data-idx="' + idx + '" value="' + (hasVal ? val : '') + '" placeholder="0">' +
+      '<button class="btn-q btn-plus" data-tab="' + tabName + '" data-idx="' + idx + '" data-d="1">+</button>' +
+    '</div>';
+  // Wire
+  setTimeout(function() {
+    var btns = div.querySelectorAll('.btn-q');
+    for (var b = 0; b < btns.length; b++) btns[b].addEventListener('click', onBtn);
+    div.querySelector('.qty-input').addEventListener('input', onInput);
+  }, 0);
+  return div;
+}
+
+function renderFrozen() {
+  var list = document.getElementById('list');
+  var st = state[currentStore].frozen;
+  for (var i = 0; i < FROZEN.length; i++) {
+    var it = FROZEN[i];
+    var val = st[i];
+    var div = document.createElement('div');
+    div.className = 'item' + (val ? ' counted' : '');
+    div.innerHTML =
+      '<div class="item-info">' +
+        '<div class="item-name">' + escHtml(it.name) + '</div>' +
+        '<div class="item-unit">' + escHtml(it.unit || '') + '</div>' +
+      '</div>' +
+      '<div class="frozen-btns">' +
+        '<button class="frozen-btn LOW' + (val==='LOW'?' active':'') + '" data-idx="' + i + '" data-v="LOW">LOW</button>' +
+        '<button class="frozen-btn MED' + (val==='MED'?' active':'') + '" data-idx="' + i + '" data-v="MED">MED</button>' +
+        '<button class="frozen-btn FULL' + (val==='FULL'?' active':'') + '" data-idx="' + i + '" data-v="FULL">FULL</button>' +
+      '</div>';
+    list.appendChild(div);
+  }
+  setTimeout(function() {
+    var btns = list.querySelectorAll('.frozen-btn');
+    for (var b = 0; b < btns.length; b++) btns[b].addEventListener('click', onFrozen);
+  }, 0);
+}
+
+function renderOrder() {
+  var list = document.getElementById('list');
+  var addEl = document.createElement('div');
+  addEl.className = 'order-add';
+  addEl.innerHTML =
+    '<input type="text" id="order-input" placeholder="e.g. 2x Vanilla syrup, 1 case oat milk...">' +
+    '<button onclick="addOrder()">+ Add</button>';
+  list.appendChild(addEl);
+
+  var orders = state[currentStore].order || [];
+  if (orders.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No order items yet. Add what you need above.';
+    list.appendChild(empty);
+  } else {
+    for (var i = 0; i < orders.length; i++) {
+      var div = document.createElement('div');
+      div.className = 'order-item';
+      div.innerHTML = '<span>' + escHtml(orders[i]) + '</span>' +
+        '<button data-idx="' + i + '" onclick="removeOrder(' + i + ')">✕</button>';
+      list.appendChild(div);
+    }
+  }
+}
+
+function renderNotes() {
+  var list = document.getElementById('list');
+  var noteVal = state[currentStore].notes[currentTab] || '';
+  var ph = 'Anything to note? Missing item not on the list, brand changes, broken items, half cases, expiry dates, etc.';
+  if (currentTab === 'order') ph = 'Extra notes about the order. Urgent? Different brand? Missing items?';
+
+  var notesEl = document.createElement('div');
+  notesEl.className = 'notes-section';
+  notesEl.innerHTML =
+    '<div class="notes-label">📝 Notes — anything missing or to flag?</div>' +
+    '<textarea class="notes-input" id="notes-area" placeholder="' + ph + '">' + escHtml(noteVal) + '</textarea>';
+  list.appendChild(notesEl);
+
+  setTimeout(function() {
+    var ta = document.getElementById('notes-area');
+    if (ta) ta.addEventListener('input', function(e) {
+      state[currentStore].notes[currentTab] = e.target.value;
+      save();
+    });
+  }, 0);
+}
+
+function onBtn(e) {
+  var t = e.currentTarget.dataset.tab;
+  var idx = e.currentTarget.dataset.idx;
+  var d = parseFloat(e.currentTarget.dataset.d);
+  var cur = Number(state[currentStore][t][idx] || 0);
+  var next = Math.max(0, Math.round((cur + d) * 100) / 100);
+  state[currentStore][t][idx] = next;
+  save();
+  render();
+}
+
+function onInput(e) {
+  var t = e.currentTarget.dataset.tab;
+  var idx = e.currentTarget.dataset.idx;
+  var v = e.currentTarget.value.trim();
+  if (v === '') {
+    delete state[currentStore][t][idx];
+  } else {
+    var n = parseFloat(v);
+    if (!isNaN(n) && n >= 0) state[currentStore][t][idx] = n;
+  }
+  save();
+  updateProgress();
+  // Update visual
+  e.currentTarget.closest('.item').classList.toggle('counted', v !== '');
+}
+
+function onFrozen(e) {
+  var idx = e.currentTarget.dataset.idx;
+  var v = e.currentTarget.dataset.v;
+  if (state[currentStore].frozen[idx] === v) {
+    delete state[currentStore].frozen[idx];
+  } else {
+    state[currentStore].frozen[idx] = v;
+  }
+  save();
+  render();
+}
+
+function addOrder() {
+  var inp = document.getElementById('order-input');
+  var v = inp.value.trim();
+  if (!v) return;
+  state[currentStore].order.push(v);
+  inp.value = '';
+  save();
+  render();
+}
+
+function removeOrder(idx) {
+  state[currentStore].order.splice(idx, 1);
+  save();
+  render();
+}
+
+function updateProgress() {
+  var label = document.getElementById('info-count');
+  var fill = document.getElementById('pfill');
+  var counted = 0, total = 0;
+  if (currentTab === 'daily') {
+    total = DAILY.length;
+    for (var k in state[currentStore].daily) {
+      if (state[currentStore].daily[k] !== undefined) counted++;
+    }
+  } else if (currentTab === 'weekly') {
+    total = WEEKLY.length;
+    for (var k in state[currentStore].weekly) {
+      if (state[currentStore].weekly[k] !== undefined) counted++;
+    }
+  } else if (currentTab === 'frozen') {
+    total = FROZEN.length;
+    for (var k in state[currentStore].frozen) {
+      if (state[currentStore].frozen[k]) counted++;
+    }
+  } else if (currentTab === 'order') {
+    total = state[currentStore].order.length;
+    counted = total;
+    label.textContent = total + ' item' + (total !== 1 ? 's' : '');
+    fill.style.width = total > 0 ? '100%' : '0%';
+    return;
+  }
+  label.textContent = counted + ' / ' + total;
+  fill.style.width = total ? Math.round(counted / total * 100) + '%' : '0%';
+}
+
+// ====== TABS & STORE ======
+var tabs = document.querySelectorAll('.tab');
+for (var i = 0; i < tabs.length; i++) {
+  tabs[i].addEventListener('click', function(e) {
+    for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+    e.currentTarget.classList.add('active');
+    currentTab = e.currentTarget.dataset.tab;
+    render();
+    window.scrollTo({top: 0});
+  });
+}
+document.getElementById('store-select').addEventListener('change', function(e) {
+  currentStore = e.target.value;
+  render();
+});
+
+// ====== REPORT ======
+function buildReport() {
+  var st = state[currentStore];
+  var lines = [];
+  lines.push('☕ BEANS UP COUNT REPORT');
+  lines.push('📍 ' + STORES[currentStore]);
+  lines.push('📅 ' + todayStr());
+  lines.push('');
+
+  if (currentTab === 'daily') {
+    lines.push('🥛 DAILY MILK CHECK');
+    lines.push('───────────────');
+    for (var i = 0; i < DAILY.length; i++) {
+      var v = st.daily[i];
+      var disp = (v !== undefined ? v : '—');
+      lines.push('• ' + DAILY[i].name + ': ' + disp);
+    }
+  } else if (currentTab === 'weekly') {
+    lines.push('📦 WEEKLY COUNT');
+    lines.push('───────────────');
+    var byCat = {};
+    for (var i = 0; i < WEEKLY.length; i++) {
+      var c = WEEKLY[i].category || 'OTHER';
+      if (!byCat[c]) byCat[c] = [];
+      byCat[c].push({it: WEEKLY[i], idx: i});
+    }
+    for (var c = 0; c < WEEKLY_CATS.length; c++) {
+      var cn = WEEKLY_CATS[c];
+      if (!byCat[cn]) continue;
+      lines.push('');
+      lines.push('▸ ' + cn);
+      for (var r = 0; r < byCat[cn].length; r++) {
+        var v = st.weekly[byCat[cn][r].idx];
+        if (v !== undefined) {
+          lines.push('  • ' + byCat[cn][r].it.name + ': ' + v);
+        }
+      }
+    }
+  } else if (currentTab === 'frozen') {
+    lines.push('❄️ FROZEN ITEMS');
+    lines.push('───────────────');
+    var lows = [], meds = [], fulls = [];
+    for (var i = 0; i < FROZEN.length; i++) {
+      var v = st.frozen[i];
+      if (v === 'LOW') lows.push(FROZEN[i].name);
+      else if (v === 'MED') meds.push(FROZEN[i].name);
+      else if (v === 'FULL') fulls.push(FROZEN[i].name);
+    }
+    if (lows.length) {
+      lines.push('');
+      lines.push('🔴 LOW (need order):');
+      for (var i = 0; i < lows.length; i++) lines.push('  • ' + lows[i]);
+    }
+    if (meds.length) {
+      lines.push('');
+      lines.push('🟡 MEDIUM:');
+      for (var i = 0; i < meds.length; i++) lines.push('  • ' + meds[i]);
+    }
+    if (fulls.length) {
+      lines.push('');
+      lines.push('🟢 FULL: ' + fulls.length + ' items');
+    }
+  } else if (currentTab === 'order') {
+    lines.push('📝 ORDER LIST');
+    lines.push('───────────────');
+    if (st.order.length === 0) {
+      lines.push('(empty)');
+    } else {
+      for (var i = 0; i < st.order.length; i++) {
+        lines.push('• ' + st.order[i]);
+      }
+    }
+  }
+
+  // Notes
+  var notes = st.notes[currentTab];
+  if (notes && notes.trim()) {
+    lines.push('');
+    lines.push('📝 NOTES:');
+    lines.push(notes);
+  }
+
+  return lines.join('\n');
+}
+
+function copyReport() {
+  var txt = buildReport();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function() {
+      toast('✓ Copied! Paste it anywhere.');
+    }, function() {
+      fallbackCopy(txt);
+    });
+  } else {
+    fallbackCopy(txt);
+  }
+}
+
+function fallbackCopy(txt) {
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('✓ Copied!');
+  } catch(e) {
+    toast('Copy failed — try long-press');
+  }
+  document.body.removeChild(ta);
+}
+
+function sendWhatsApp() {
+  var txt = buildReport();
+  var url = 'https://wa.me/18328945942?text=' + encodeURIComponent(txt);
+  window.open(url, '_blank');
+}
+
+function resetTab() {
+  var name = currentTab.charAt(0).toUpperCase() + currentTab.slice(1);
+  if (!confirm('Reset ' + name + ' for ' + STORES[currentStore] + '? All counts + notes will be cleared.')) return;
+  if (currentTab === 'order') {
+    state[currentStore].order = [];
+  } else {
+    state[currentStore][currentTab] = {};
+  }
+  state[currentStore].notes[currentTab] = '';
+  save();
+  render();
+  toast(name + ' cleared');
+}
+
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2200);
+}
+
+try {
+  render();
+} catch(e) {
+  showError('Init: ' + e.message);
+}
+</script>
+</body>
+</html>
